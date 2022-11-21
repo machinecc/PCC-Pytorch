@@ -14,7 +14,11 @@ We ran a task similar to the one provided in PCC-RL paper, and received similar 
 ![Throughput of RL vs TCP](results/graphs/thpt_send_rl_tcp_10.png)
 
 ### Requirments
-* Python 3
-* Pytorch
-* OpenAI's gym
-* numpy
+#### Ubuntu
+pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
+
+pip install gym
+
+pip install numpy
+
+pip install matplotlib
