@@ -209,16 +209,16 @@ def plot_latency_and_loss(test_rl_throughput):
     for bw in test_rl_throughput:
         fig, axs = plt.subplots(2)
         plt.subplots_adjust(hspace=0.4)
-        axs[0].plot(results['time_data'], results['latency_data'])
+        axs[0].plot(test_rl_throughput[bw]['time_data'], test_rl_throughput[bw]['latency_data'])
         axs[0].set(ylabel='Latency (sec)')
         axs[0].set(title='Latency, Max Throughput = %d Mbps' % bw)
         axs[0].set(ylim=(0.0, 0.5))
 
-        axs[1].plot(results['time_data'], results['loss_data'])
+        axs[1].plot(test_rl_throughput[bw]['time_data'], test_rl_throughput[bw]['loss_data'])
         axs[1].set(ylabel='Loss rate')
         axs[1].set(xlabel='Monitor Interval')
         axs[1].set(title='Loss rate, Max Throughput = %d Mbps' % bw)
-        axs[1].set(ylim=(0.0, 0.2))
+        #axs[1].set(ylim=(0.0, 0.2))
 
         fig.savefig('./figures/latency_loss_graph_bw=%d.png' % bw)
         #print(results['loss_data'])
@@ -284,12 +284,10 @@ def plot_comparison_with_different_rewards(test_rl_throughput, test_rl_latency):
 
         fig.save('./figures/comparison_with_rewards_bw=%.2f.png' % bw)
 
-
-
-
-
-def analyze_results():  
+def plot_test_rewards():
     # plot figures
+    # usage: python main2.py --plot
+    print('plot rewards')
     fig_path = './figures/'
     rewards = np.array(torch.load('total_test_rewards.pkl'))
     plt.figure()
@@ -299,7 +297,11 @@ def analyze_results():
     plt.ylabel('Reward')
     plt.title('Accumulated Evaluation Reward per train episode')
     plt.savefig(fig_path + 'reward_plot.png')
+    #print(rewards)
 
+
+
+def analyze_results():  
     bw_list = [2.0, 5.0, 10.0, 15.0, 20.0]
     # analyze throughput vs. bandwidth
     # usage:
@@ -312,7 +314,7 @@ def analyze_results():
     test_rl_throughput = dict()
     for bw in bw_list:
         file_name = './logs/test_rl_throughput_{:.2f}.json'.format(bw)
-        if os.path.isfile() == False:
+        if os.path.isfile(file_name) == False:
             print('log file {} does not exist'.format(file_name))
             continue
         test_rl_throughput[bw] = parse_json(file_name)
@@ -329,7 +331,7 @@ def analyze_results():
     test_rl_latency = dict()
     for bw in bw_list:
         file_name = './logs/test_rl_latency_{:.2f}.json'.format(bw)
-        if os.path.isfile() == False:
+        if os.path.isfile(file_name) == False:
             print('log file {} does not exist'.format(file_name))
             continue
         test_rl_latency[bw] = parse_json(file_name)
@@ -350,17 +352,19 @@ if __name__ == '__main__':
     parser.add_argument('--learning-rate', '-lr', type=float, default=1e-4)
     parser.add_argument('--bandwidth', '-bw', type=float, default=5, help='Network bandwidth in Mbps')
     parser.add_argument('--reward', type=str, default='throughput', choices=['throughput', 'latency'], help='RL agent\'s goal')
-    parser.add_argument('--analysis', type=bool, default=False, help='if analyze results')
+    parser.add_argument('--plot', '-p', action="store_true", help='plot training/test rewards')
+    parser.add_argument('--analysis', '-a', action="store_true", help='analyze results')
 
     args = parser.parse_args()
 
-
     warnings.filterwarnings('ignore')
 
-    if args.analysis == False:
-        main(args)
-    else:
+    if args.plot == True:
+        plot_test_rewards()
+    elif args.analysis == True:
         analyze_results()
+    else:
+        main(args)
 
 
     
