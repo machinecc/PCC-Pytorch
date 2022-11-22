@@ -257,24 +257,24 @@ def plot_comparison_with_different_rewards(test_rl_throughput, test_rl_latency):
         fig, axs = plt.subplots(3)
         plt.subplots_adjust(hspace=0.4)
         fig.set_size_inches(11.5, 7.5)
-        axs[0].plt(res_throughput['time_data'], np.array(res_throughput['thpt_data'])/1e6, label='Reward=throughput')
-        axs[0].plt(test_rl_latency['time_data'], np.array(test_rl_latency['thpt_data'])/1e6, label='Reward=latency')
+        axs[0].plot(res_throughput['time_data'], np.array(res_throughput['thpt_data'])/1e6, label='Reward=throughput')
+        axs[0].plot(res_latency['time_data'], np.array(res_latency['thpt_data'])/1e6, label='Reward=latency')
         axs[0].set(ylabel='Throughput [Mbps]')
         axs[0].set(title='Throughput of different rewards')
         axs[0].grid()
         axs[0].legend(loc='lower right')
 
 
-        axs[1].plt(res_throughput['time_data'], res_throughput['latency_data'], label='Reward=throughput')
-        axs[1].plt(test_rl_latency['time_data'], test_rl_latency['latency_data'], label='Reward=latency')
+        axs[1].plot(res_throughput['time_data'], res_throughput['latency_data'], label='Reward=throughput')
+        axs[1].plot(res_latency['time_data'], res_latency['latency_data'], label='Reward=latency')
         axs[1].set(ylabel='Latency [sec]')
         axs[1].set(title='Latency of different rewards')
         axs[1].set(ylim=(0.15, 0.25))
         axs[1].grid()
         axs[1].legend(loc='lower right')
 
-        axs[2].plt(res_throughput['time_data'], res_throughput['loss_data'], label='Reward=throughput')
-        axs[2].plt(test_rl_latency['time_data'], test_rl_latency['loss_data'], label='Reward=latency')
+        axs[2].plot(res_throughput['time_data'], res_throughput['loss_data'], label='Reward=throughput')
+        axs[2].plot(res_latency['time_data'], res_latency['loss_data'], label='Reward=latency')
         axs[2].set(xlabel='Monitor Interval')
         axs[2].set(ylabel='Loss rate')
         axs[2].set(title='Loss rate of different rewards')
@@ -282,7 +282,7 @@ def plot_comparison_with_different_rewards(test_rl_throughput, test_rl_latency):
         axs[2].grid()
         axs[2].legend(loc='lower right')
 
-        fig.save('./figures/comparison_with_rewards_bw=%.2f.png' % bw)
+        fig.savefig('./figures/comparison_with_rewards_bw=%.2f.png' % bw)
 
 def plot_test_rewards():
     # plot figures
