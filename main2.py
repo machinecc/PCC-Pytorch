@@ -9,11 +9,83 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import json
 import os
+from models import Policy
 
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
 eps = np.finfo(np.float32).eps.item()
 
-class Policy(nn.Module):
+
+
+
+
+
+
+
+###########################################################################
+def select_action(state, model):
+    state = torch.from_numpy(state).float()
+    # action_mean, action_log_var, state_value = model(state)
+    action_mean, state_value = model(state)
+
+    # create a categorical distribution over the list of probabilities of actions
+    m = torch.distributions.normal.Normal(action_mean, 5.0 * torch.ones_like(action_mean))
+
+    # and sample an action using the distribution
+    action = m.sample()
+
+    # save to action buffer
+    model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
+
+    # the action to take (left or right)
+    return action.item()
+
+
+def finish_episode(args, optimizer, model):
+    """
+    Training code. Calcultes actor and critic loss and performs backprop.
+    """
+    R = 0
+    saved_actions = model.saved_actions
+    policy_losses = []  # list to save actor (policy) loss
+    value_losses = []  # list to save critic (value) loss
+    returns = []  # list to save the true values
+
+    # calculate the true value using rewards returned from the environment
+    for r in model.rewards[::-1]:
+        # calculate the discounted value
+        R = r + args.gamma * R
+        returns.insert(0, R)
+
+    returns = torch.tensor(returns)
+    returns = (returns - returns.mean()) / (returns.std() + eps)
+
+    for (log_prob, value), R in zip(saved_actions, returns):
+        advantage = R - value.item()
+
+        # calculate actor (policy) loss
+        policy_losses.append(-log_prob * advantage)
+
+        # calculate critic (value) loss using L1 smooth loss
+        value_losses.append(torch.nn.functional.smooth_l1_loss(value, torch.tensor([R])))
+
+    # reset gradients
+    optimizer.zero_grad()
+
+    # sum up all the values of policy_losses and value_losses
+    loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
+
+    # perform backprop
+    loss.backward()
+    optimizer.step()
+
+    # reset rewards and action buffer
+    del model.rewards[:]
+    del model.saved_actions[:]
+###########################################################################
+
+
+
+class Policy2(nn.Module):
     """
     implements both actor and critic in one model
     """
@@ -53,7 +125,7 @@ class Policy(nn.Module):
         return action_mean, state_value
 
 
-def select_action(state, model):
+def select_action2(state, model):
     state = torch.from_numpy(state).float()
     action_mean, state_value = model(state)
 
@@ -69,7 +141,7 @@ def select_action(state, model):
     return action.item()
 
 
-def finish_episode(args, optimizer, model):
+def finish_episode2(args, optimizer, model):
     """
     Training code. Calculates actor and critic loss and performs backprop.
     """
@@ -284,19 +356,20 @@ def plot_comparison_with_different_rewards(test_rl_throughput, test_rl_latency):
 
         fig.savefig('./figures/comparison_with_rewards_bw=%.2f.png' % bw)
 
-def plot_test_rewards():
+def plot_test_rewards(rewards = None):
     # plot figures
     # usage: python main2.py --plot
-    print('plot rewards')
+    # print('plot rewards')
     fig_path = './figures/'
-    rewards = np.array(torch.load('total_test_rewards.pkl'))
+    if rewards == None:
+        rewards = np.array(torch.load('total_test_rewards.pkl'))
     plt.figure()
     plt.plot(np.arange(rewards.shape[0])*10, rewards)
     plt.grid()
     plt.xlabel('Training Episodes')
     plt.ylabel('Reward')
     plt.title('Accumulated Evaluation Reward per train episode')
-    plt.savefig(fig_path + 'reward_plot.png')
+    plt.savefig(fig_path + 'reward_plot.png')    
     #print(rewards)
 
 
@@ -342,6 +415,34 @@ def analyze_results():
     plot_comparison_with_different_rewards(test_rl_throughput, test_rl_latency)
 
 
+def test_model(args):
+    target = args.reward
+    bw = args.bandwidth
+    file_name = './saved_models/model_{}_bw_{:.2f}.pkl'.format(args.reward, args.bandwidth)
+    #file_name = 'ac_model_latency.pkl'
+    #print(file_name)
+    model = Policy()
+    model.load_state_dict(torch.load(file_name))
+    model.eval()
+    total_test_rewards = []
+    # for i_episode in range(10):
+    #     test_reward = evaluate_model(args, i_episode, model, save_json=False)
+    #     total_test_rewards.append(test_reward)
+    # plot_test_rewards(total_test_rewards)
+
+    evaluate_model(args, None, model, save_json=True)
+    file_name = './logs/test_rl_{}_{:.2f}.json'.format(args.reward, args.bandwidth)
+    res = parse_json(file_name)
+    plt.figure()
+    plt.plot(res['time_data'], np.array(res['thpt_data'])/1e6, label='Throughput')
+    plt.ylabel('Throughput [Mbps]')
+    plt.title('Throughput with reward={}, bw={:.2f}'.format(args.reward, args.bandwidth))
+    plt.grid()
+    plt.savefig('./figures/throughput.png')    
+  
+
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch actor-critic example')
@@ -354,6 +455,8 @@ if __name__ == '__main__':
     parser.add_argument('--reward', type=str, default='throughput', choices=['throughput', 'latency'], help='RL agent\'s goal')
     parser.add_argument('--plot', '-p', action="store_true", help='plot training/test rewards')
     parser.add_argument('--analysis', '-a', action="store_true", help='analyze results')
+    parser.add_argument('--test', '-t', action="store_true", help='test model')
+    
 
     args = parser.parse_args()
 
@@ -363,6 +466,8 @@ if __name__ == '__main__':
         plot_test_rewards()
     elif args.analysis == True:
         analyze_results()
+    elif args.test == True:
+        test_model(args)
     else:
         main(args)
 
